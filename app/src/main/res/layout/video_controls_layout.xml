@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:gravity="center_horizontal">
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/playerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:use_controller="true"
+        app:resize_mode="fit"/>
+
+    <GridLayout
+        android:id="@+id/layoutCapture"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:verticalSpacing="4dp"
+        android:horizontalSpacing="4dp">
+
+        <com.videolabeling.views.ButtonControl
+            android:id="@+id/controlCapture"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_gravity="center"/>
+
+        <com.videolabeling.views.ButtonControl
+            android:id="@+id/controlHideVideo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_gravity="center"/>
+
+    </GridLayout>
+    <LinearLayout
+        android:id="@+id/layoutLabeledFrameIndex"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/textLabeledFrameIndex"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="Fotograma con etiqueta"
+            android:textSize="16sp"
+            android:layout_marginEnd="8dp"/>
+
+        <com.videolabeling.views.NumberInput
+            android:id="@+id/inputLabeledFrameIndex"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/layoutFrameIndex"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/textFrameIndex"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="Fotograma"
+            android:textSize="16sp"
+            android:layout_marginEnd="8dp"/>
+
+        <com.videolabeling.views.NumberInput
+            android:id="@+id/inputFrameIndex"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            />
+    </LinearLayout>
+
+</LinearLayout>

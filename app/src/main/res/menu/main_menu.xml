@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/open_dir"
+        android:title=""
+        app:showAsAction="always"
+        app:actionLayout="@layout/menu_item_layout"/>
+    <item
+        android:id="@+id/download"
+        android:title=""
+        app:showAsAction="ifRoom"
+        app:actionLayout="@layout/menu_item_layout"/>
+    <item
+        android:id="@+id/create_project"
+        android:title=""
+        app:showAsAction="ifRoom"
+        app:actionLayout="@layout/menu_item_layout"/>
+</menu>
