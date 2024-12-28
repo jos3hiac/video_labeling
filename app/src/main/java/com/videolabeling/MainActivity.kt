@@ -11,11 +11,13 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.LinearLayout.LayoutParams
 import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.ViewCompat
@@ -45,6 +47,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var annotationManager: AnnotationManager
     private lateinit var mediaFileViewModel: MediaFileViewModel
     private lateinit var openFolderLauncher: ActivityResultLauncher<Uri?>
+    private lateinit var downloadLauncher: ActivityResultLauncher<Uri?>
     private var isPortrait = true
     private lateinit var recyclerViewMedia: RecyclerView
     private lateinit var mediaAdapter: MediaAdapter
@@ -152,7 +155,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         openFolderLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-            uri?.let { uri ->
+            uri?.let {
                 //saveUriToPreferences(this, uri)
                 /*contentResolver.takePersistableUriPermission(
                     uri,
@@ -165,6 +168,16 @@ class MainActivity : AppCompatActivity() {
                 /*Toast.makeText(this, "${images.size} imágenes encontradas", Toast.LENGTH_SHORT).show()
                 loadShapesFromJson(uri,images)*/
                 mediaFileViewModel.files.value = files
+            }
+        }
+        downloadLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            uri?.let {
+                val loadingDialog = showLoadingDialog(this)
+                loadingDialog.show()
+                val pair = annotationManager.saveProjectAnnotations(this,uri,annotationManager.labels)
+                loadingDialog.dismiss()
+                if(pair.first) Toast.makeText(this, "Se descargó exitosamente en ${pair.second}", Toast.LENGTH_SHORT).show()
+                else Toast.makeText(this, "No se pudo descargar", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -333,8 +346,8 @@ class MainActivity : AppCompatActivity() {
             imageControls.controlRemoveShape.setEnabled(isSelectedShapeNotNull)
             imageControls.controlEditShape.setEnabled(false)
             imageControls.controlEditLabel.setEnabled(isSelectedShapeNotNull)
-
         }
+        imageControls.controlShowVideo.setEnabled(mediaFileViewModel.file is VideoFile)
     }
     private fun getFilesFromFolder(context: Context, folderUri: Uri): List<MediaFile> {
         val mediaFiles = mutableListOf<MediaFile>()
@@ -344,12 +357,12 @@ class MainActivity : AppCompatActivity() {
                 if (file.isFile){
                     if(file.type?.startsWith("image/") == true){
                         Log.e("image", file.name!!)
-                        val imageFile = ImageFile(this,file.uri,file.name!!,imageControls.zoomImageView.matrix,annotationManager.labels)
+                        val imageFile = ImageFile(this,file.uri,file.name!!,imageControls.zoomImageView.matrix)
                         mediaFiles.add(imageFile)
                     }
                     else if(file.type?.startsWith("video/") == true){
                         Log.e("video", file.name!!)
-                        mediaFiles.add(VideoFile(this,file.uri, file.name!!,imageControls.zoomImageView.matrix,annotationManager.labels))
+                        mediaFiles.add(VideoFile(this,file.uri, file.name!!,imageControls.zoomImageView.matrix))
                     }
                 }
             }
@@ -360,7 +373,7 @@ class MainActivity : AppCompatActivity() {
         return mediaFiles
     }
     private fun updateMenu(){
-        val projectName = annotationManager.getCurrentProject()
+        val projectName = annotationManager.getCurrentProjectName()
         imageControls.labelDialog.setItems(annotationManager.labels)
         supportActionBar?.title = projectName
         setMenuItemEnabled(mediaFileViewModel.menu!!.findItem(R.id.open_dir),projectName != "")
@@ -397,6 +410,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    private fun showLoadingDialog(context: Context): AlertDialog {
+        val builder = AlertDialog.Builder(this)
+        builder.setView(R.layout.loading_dialog)
+        builder.setCancelable(false)
+        return builder.create()
+    }
     private fun setVideoControlsVisibility(isVisible: Boolean){
         mediaFileViewModel.apply {
             isVideoVisible = isVisible
@@ -408,19 +427,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun setZoomImageByImage(file: ImageFile){
-        file.image?.let { image ->
-            Log.e("test","image: ${file.name}")
-            //zoomImageView.setImageBitmap(frame)
-            imageControls.zoomImageView.setImageDrawable(BitmapDrawable(resources,image))
+        file.getImageInfo()?.let { imageInfo ->
+            imageInfo.image?.let { frame ->
+                mediaFileViewModel.initImageInfo(imageInfo,annotationManager.labels)
+                Log.d("test","image ${file.name} shapes ${imageInfo.shapes.size}")
+                imageControls.zoomImageView.apply {
+                    resetViewState()
+                    setPermissions(arrayOf(ZoomImageView.Permission.ALL))
+                    setShapes(imageInfo.shapes)
+                    setImageDrawable(BitmapDrawable(resources,frame))
+                }
+                mediaFileViewModel.removeShape()
+                mediaFileViewModel.resetSelectedShape()
+                updateButtonsState(true)
+            }
         }
     }
-    /*private fun setZoomImageByTime(file: VideoFile,time: Long){
-        file.getFrameByMilliseconds(time)?.let { frame ->
-            val frameIndex = file.getFrameIndexByMilliseconds(time)
-            Log.e("test","Video: ${file.name} con time $time frame: $frameIndex")
-            zoomImageView.setImageDrawable(BitmapDrawable(resources,frame))
-        }
-    }*/
     private fun setZoomImageByFrameIndex(file: VideoFile,frameIndex: Int){
         file.getImageInfo(frameIndex)?.let { imageInfo ->
             imageInfo.image?.let { frame ->
@@ -437,7 +459,6 @@ class MainActivity : AppCompatActivity() {
                 mediaFileViewModel.resetSelectedShape()
                 updateButtonsState(true)
                 updateFrame(file,frameIndex)
-
             }
         }
     }
@@ -450,6 +471,22 @@ class MainActivity : AppCompatActivity() {
             Log.d("test save frame","frameIndex ${imageInfo.frameIndex} shapes size ${imageInfo.shapes.size}")
         }
     }
+    /*
+    private fun saveProjectAnnotations(selectedFolderUri: Uri): Pair<Boolean,String> {
+        val newFolderName = annotationManager.generateUniqueName("${annotationManager.getCurrentProjectName()}_yolo")
+        return try {
+            val pickedDir = DocumentFile.fromTreeUri(this,selectedFolderUri)
+            val newFolder = pickedDir?.createDirectory(newFolderName)
+            if (newFolder != null) {
+
+            }
+            Pair(true,newFolderName)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Pair(false,newFolderName)
+        }
+    }
+     */
     private fun Int.dpToPx(): Int {
         return (this * resources.displayMetrics.density).toInt()
     }
@@ -548,38 +585,35 @@ class MainActivity : AppCompatActivity() {
         val videoControlsLayoutParams = videoControls.layoutParams as RelativeLayout.LayoutParams
         val imageControlsLayoutParams = imageControls.layoutParams as RelativeLayout.LayoutParams
         val playerLayoutParams = videoControls.getPlayerLayoutParams()
-        val imageLayoutParams = imageControls.getImageLayoutParams()
+        val zoomImageViewLayoutParams = imageControls.getZoomImageViewLayoutParams()
         //val labelLayoutParams = recyclerViewLabel.layoutParams as RelativeLayout.LayoutParams
         //recyclerViewLabel.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
         if(isPortrait){
             recyclerViewMedia.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
 
+            videoControls.setOrientation(LinearLayout.VERTICAL)
+
             videoControlsLayoutParams.apply {
                 addRule(RelativeLayout.BELOW, R.id.recyclerViewMedia)
-                removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                //removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
                 removeRule(RelativeLayout.END_OF)
+                removeRule(RelativeLayout.ALIGN_PARENT_RIGHT)
                 width = RelativeLayout.LayoutParams.MATCH_PARENT
                 height = RelativeLayout.LayoutParams.WRAP_CONTENT
             }
 
-            playerLayoutParams.apply {
-                width = LinearLayout.LayoutParams.MATCH_PARENT
-                height = 350.dpToPx()
-            }
-
-            videoControls.setOrientation(LinearLayout.HORIZONTAL)
-            imageControls.setOrientation(LinearLayout.HORIZONTAL)
+            imageControls.setOrientation(LinearLayout.VERTICAL)
 
             imageControlsLayoutParams.apply {
                 addRule(RelativeLayout.BELOW, R.id.videoControlsLayout)
-                removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                //removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
                 removeRule(RelativeLayout.END_OF)
                 width = RelativeLayout.LayoutParams.MATCH_PARENT
                 height = RelativeLayout.LayoutParams.WRAP_CONTENT
             }
 
-            imageLayoutParams.apply {
-                width = LinearLayout.LayoutParams.MATCH_PARENT
+            zoomImageViewLayoutParams.apply {
+                width = LayoutParams.MATCH_PARENT
                 height = playerLayoutParams.height
             }
 
@@ -595,31 +629,28 @@ class MainActivity : AppCompatActivity() {
         else{
             recyclerViewMedia.layoutManager = GridLayoutManager(this, 2)
 
+            videoControls.setOrientation(LinearLayout.HORIZONTAL)
+
             videoControlsLayoutParams.apply {
                 addRule(RelativeLayout.BELOW,R.id.toolbar)
-                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE)
+                //addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE)
                 addRule(RelativeLayout.END_OF,R.id.recyclerViewMedia)
-                width = RelativeLayout.LayoutParams.WRAP_CONTENT//(200 * resources.displayMetrics.density).toInt()
+                //addRule(RelativeLayout.ALIGN_PARENT_RIGHT, RelativeLayout.TRUE)
+                width = RelativeLayout.LayoutParams.WRAP_CONTENT
                 height = RelativeLayout.LayoutParams.MATCH_PARENT
             }
 
-            playerLayoutParams.apply {
-                width = 350.dpToPx()
-                height = LinearLayout.LayoutParams.MATCH_PARENT
-            }
-
-            videoControls.setOrientation(LinearLayout.VERTICAL)
-            imageControls.setOrientation(LinearLayout.VERTICAL)
+            imageControls.setOrientation(LinearLayout.HORIZONTAL)
 
             imageControlsLayoutParams.apply {
                 addRule(RelativeLayout.BELOW,R.id.toolbar)
-                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE)
+                //addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE)
                 addRule(RelativeLayout.END_OF,R.id.videoControlsLayout)
-                width = RelativeLayout.LayoutParams.WRAP_CONTENT//(200 * resources.displayMetrics.density).toInt()
+                width = RelativeLayout.LayoutParams.WRAP_CONTENT
                 height = RelativeLayout.LayoutParams.MATCH_PARENT
             }
 
-            imageLayoutParams.apply {
+            zoomImageViewLayoutParams.apply {
                 width = playerLayoutParams.width
                 height = RelativeLayout.LayoutParams.MATCH_PARENT
             }
@@ -702,6 +733,10 @@ class MainActivity : AppCompatActivity() {
             }
             R.id.create_project -> {
                 projectDialog.show()
+                true
+            }
+            R.id.download -> {
+                downloadLauncher.launch(null)
                 true
             }
             else -> super.onOptionsItemSelected(item)

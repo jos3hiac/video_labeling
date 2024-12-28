@@ -7,6 +7,8 @@ import android.graphics.Matrix
 import android.graphics.PointF
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.util.Base64
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -14,7 +16,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.util.Locale
 
 abstract class MediaFile(
@@ -22,12 +27,12 @@ abstract class MediaFile(
     val uri: Uri,
     val name: String,
     val matrix: Matrix,
-    val labels: List<String>,
     val type: String
 ){
     var thumbnail: Bitmap? = null
     var areShapesLoaded = false
     var onThumbnailLoaded: ((Bitmap?) -> Unit)? = null
+    val nameWithoutExtension = File(name).nameWithoutExtension
 
     fun loadThumbnailAsync() {
         CoroutineScope(Dispatchers.IO).launch {
@@ -57,9 +62,9 @@ abstract class MediaFile(
     }
 }
 
-class ImageFile(context: Context,uri: Uri,name: String,matrix: Matrix,labels: List<String>): MediaFile(context,uri,name,matrix,labels,"image"){
+class ImageFile(context: Context,uri: Uri,name: String,matrix: Matrix): MediaFile(context,uri,name,matrix,"image"){
     var image: Bitmap? = null
-    var imageInfo: ImageInfo? = null
+    private var imageInfo: ImageInfo? = null
     fun loadImage(): Bitmap? {
         return try {
             val inputStream = context.contentResolver.openInputStream(uri)
@@ -69,10 +74,19 @@ class ImageFile(context: Context,uri: Uri,name: String,matrix: Matrix,labels: Li
             null
         }
     }
+    fun getImageInfo(): ImageInfo? {
+        if(image == null) image = loadImage()
+        return imageInfo?.also {
+            if (it.image == null) it.image = image
+        } ?: if (image != null) {
+            imageInfo = ImageInfo(this,image!!.width,image!!.height,0,image)
+            imageInfo
+        } else null
+    }
     override fun loadShapes(annotationDir: String) {
         try {
             imageInfo = null
-            val file = File(annotationDir, "$name.json")
+            val file = File(annotationDir, "$nameWithoutExtension.json")
             val imageData:ImageData = Json.decodeFromString(file.readText())
             imageInfo = ImageInfo(this,imageData)
             areShapesLoaded = true
@@ -82,10 +96,10 @@ class ImageFile(context: Context,uri: Uri,name: String,matrix: Matrix,labels: Li
         }
     }
     fun saveShapes(annotationDir: String){
-        imageInfo?.save(File(annotationDir,"$name.json").path)
+        imageInfo?.save(File(annotationDir,"$nameWithoutExtension.json").path)
     }
 }
-class VideoFile(context: Context,uri: Uri,name: String,matrix: Matrix,labels: List<String>): MediaFile(context,uri,name,matrix,labels,"video"){
+class VideoFile(context: Context,uri: Uri,name: String,matrix: Matrix): MediaFile(context,uri,name,matrix,"video"){
     var fps: Float? = null
     var duration: Float? = null
     var frameCount: Int? = null
@@ -122,7 +136,9 @@ class VideoFile(context: Context,uri: Uri,name: String,matrix: Matrix,labels: Li
     }
     fun getImageInfo(frameIndex: Int): ImageInfo? {
         return videoInfo.images[frameIndex]?.also { imageInfo ->
-                if (imageInfo.image == null) imageInfo.image = getFrameByFrameIndex(frameIndex)
+                if (imageInfo.image == null) {
+                    imageInfo.image = getFrameByFrameIndex(frameIndex)
+                }
             } ?: getFrameByFrameIndex(frameIndex)?.let { image ->
                 val imageInfo = ImageInfo(this,image.width,image.height,frameIndex,image)
                 videoInfo.addImageInfo(imageInfo)
@@ -133,7 +149,7 @@ class VideoFile(context: Context,uri: Uri,name: String,matrix: Matrix,labels: Li
         try {
             videoInfo.clear()
             val dir = getVideoJsonFile(annotationDir)
-            dir.listFiles()?.sortedBy { file -> file.name }?.forEach { file ->
+            dir.listFiles()?.filter { it.extension == "json" }?.sortedBy { file -> file.name }?.forEach { file ->
                 val imageData:ImageData = Json.decodeFromString(file.readText())
                 videoInfo.addImageInfo(ImageInfo(this,imageData))
             }
@@ -152,11 +168,11 @@ class VideoFile(context: Context,uri: Uri,name: String,matrix: Matrix,labels: Li
         videoInfo.save(getVideoJsonFile(annotationDir).path)
     }
     fun saveShapes(annotationDir: String,imageInfo: ImageInfo){
-        val videoJsonPath = File(annotationDir,File(name).nameWithoutExtension).path
+        val videoJsonPath = File(annotationDir,nameWithoutExtension).path
         videoInfo.saveImageInfo(videoJsonPath,imageInfo)
     }
     private fun getVideoJsonFile(annotationDir: String): File {
-        return File(annotationDir, File(name).nameWithoutExtension)
+        return File(annotationDir, nameWithoutExtension)
     }
 }
 
@@ -192,9 +208,11 @@ class ImageInfo(
     val shapes = mutableListOf<Shape>()
 
     fun save(imageJsonPath: String){
+        Log.d("test imageJsonPath",imageJsonPath)
         val file = File(imageJsonPath)
         file.parentFile?.mkdirs()
         file.writeText(toJsonString())
+        saveImage(imageJsonPath)
     }
     /*fun setMatrix(matrix: Matrix): ImageInfo{
         for (shape in shapes) shape.setMatrix(matrix)
@@ -206,12 +224,44 @@ class ImageInfo(
             val type = shape.type
             shapeDataList.add(ShapeData(type,shape.getLabel(),shape.points.map { point -> listOf(point.x,point.y) }))
         }
-        val imageData = ImageData(width,height,frameIndex,shapeDataList)
+        val imageNameWithoutExtension = when(mediaFile){
+            is ImageFile -> mediaFile.nameWithoutExtension
+            is VideoFile -> mediaFile.videoInfo.getImageNameWithoutExtension(frameIndex)
+            else -> ""
+        }
+        val imageData = ImageData("${imageNameWithoutExtension}.jpeg",width,height,frameIndex,shapeDataList)
         val json = Json {
             prettyPrint = true
             prettyPrintIndent = "  "
         }
         return json.encodeToString(ImageData.serializer(),imageData)
+    }
+    private fun saveImage(imageJsonPath: String){
+        image?.let {
+            val filePath = imageJsonPath.replaceAfterLast(".", "jpeg")
+            if(!File(filePath).exists()) saveBitmapAsJpeg(it,filePath)
+        }
+    }
+    private fun bitmapToString(bitmap: Bitmap?): String {
+        return if(bitmap != null){
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream)
+            val byteArray = byteArrayOutputStream.toByteArray()
+            Base64.encodeToString(byteArray, Base64.DEFAULT)
+        } else ""
+    }
+    private fun saveBitmapAsJpeg(bitmap: Bitmap,filePath: String): Boolean {
+        return try {
+            val file = File(filePath)
+            val outputStream = FileOutputStream(file)
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+            outputStream.flush()
+            outputStream.close()
+            true
+        } catch (e: IOException) {
+            e.printStackTrace()
+            false
+        }
     }
 }
 class VideoInfo(
@@ -224,6 +274,10 @@ class VideoInfo(
         images[imageInfo.frameIndex] = imageInfo
         updateSortedImages()
     }
+    fun clear(){
+        images.clear()
+        sortedImages = listOf()
+    }
     fun findIndex(frameIndex: Int): Int? {
         return findExactIndex(sortedImages,frameIndex)
     }
@@ -233,16 +287,15 @@ class VideoInfo(
     fun findUpperClosestIndex(frameIndex: Int): Int? {
         return findUpperClosestIndex(sortedImages,frameIndex)
     }
+    fun getImageNameWithoutExtension(frameIndex: Int): String {
+        return "${videoFile.nameWithoutExtension}_${String.format(Locale.US,"%07d", frameIndex)}"
+    }
     fun removeImageInfo(frameIndex: Int){
         images.remove(frameIndex)
         updateSortedImages()
     }
     fun removeImageInfo(imageInfo: ImageInfo){
         removeImageInfo(imageInfo.frameIndex)
-    }
-    fun clear(){
-        images.clear()
-        sortedImages = listOf()
     }
     fun saveImageInfo(videoJsonDir: String,frameIndex: Int){
         images[frameIndex]?.let{ (saveImageInfo(videoJsonDir,it)) }
@@ -309,7 +362,7 @@ class VideoInfo(
         return upperIndex
     }
     private fun getImageJsonPath(videoJsonPath: String,frameIndex: Int): String {
-        return File(videoJsonPath,"${File(videoFile.name).nameWithoutExtension}_${String.format(Locale.US,"%07d", frameIndex)}.json").path
+        return File(videoJsonPath,"${getImageNameWithoutExtension(frameIndex)}.json").path
     }
     private fun updateSortedImages(){
         //val filteredImages = images//images.filter { it.value.shapes.isNotEmpty() }
@@ -358,7 +411,7 @@ data class ShapeData(
 )
 @Serializable
 data class ImageData(
-    //@SerialName("imagePath") val path: String,
+    @SerialName("imagePath") val path: String,
     @SerialName("imageWidth") val width: Int,
     @SerialName("imageHeight") val height: Int,
     @SerialName("frameIndex") val frameIndex: Int,

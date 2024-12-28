@@ -2,7 +2,6 @@ package com.videolabeling.views
 
 import android.content.Context
 import android.util.AttributeSet
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.GridLayout
@@ -18,6 +17,9 @@ class VideoControlsLayout @JvmOverloads constructor(
 ) : LinearLayout(context, attrs, defStyleAttr) {
     val exoPlayer: ExoPlayer
     val playerView: PlayerView
+    val layoutVideo: LinearLayout
+    val layoutPlayerView: LinearLayout
+    val layoutFrame: LinearLayout
     val layoutCapture: GridLayout
     val layoutLabeledFrameIndex: LinearLayout
     val layoutFrameIndex: LinearLayout
@@ -31,17 +33,19 @@ class VideoControlsLayout @JvmOverloads constructor(
         exoPlayer = ExoPlayer.Builder(context).build()
         playerView = findViewById(R.id.playerView)
         playerView.player = exoPlayer
-
+        layoutVideo = findViewById(R.id.layoutVideo)
+        layoutPlayerView = findViewById(R.id.layoutPlayerView)
+        layoutFrame = findViewById(R.id.layoutFrame)
         layoutCapture = findViewById(R.id.layoutCapture)
         layoutLabeledFrameIndex = findViewById(R.id.layoutLabeledFrameIndex)
         layoutFrameIndex = findViewById(R.id.layoutFrameIndex)
 
-        controlCapture = layoutCapture.findViewById(R.id.controlCapture)
+        controlCapture = findViewById(R.id.controlCapture)
         controlCapture.apply {
             setIcon(R.drawable.baseline_photo_camera_36)
             setText("Tomar captura")
         }
-        controlHideVideo = layoutCapture.findViewById(R.id.controlHideVideo)
+        controlHideVideo = findViewById(R.id.controlHideVideo)
         controlHideVideo.apply {
             setIcon(R.drawable.baseline_videocam_off_36)
             setText("Ocultar video")
@@ -49,6 +53,15 @@ class VideoControlsLayout @JvmOverloads constructor(
 
         inputLabeledFrameIndex = findViewById(R.id.inputLabeledFrameIndex)
         inputFrameIndex = findViewById(R.id.inputFrameIndex)
+    }
+    fun getVideoLayoutParams(): LayoutParams {
+        return layoutVideo.layoutParams as LayoutParams
+    }
+    fun getPlayerViewLayoutParams(): LayoutParams {
+        return layoutPlayerView.layoutParams as LayoutParams
+    }
+    fun getFrameLayoutParams(): LayoutParams {
+        return layoutFrame.layoutParams as LayoutParams
     }
     fun getPlayerLayoutParams(): LayoutParams {
         return playerView.layoutParams as LayoutParams
@@ -61,18 +74,53 @@ class VideoControlsLayout @JvmOverloads constructor(
         setVisibility(visibility)
     }
     override fun setOrientation(orientation: Int){
-        super.setOrientation(orientation)
-        layoutLabeledFrameIndex.orientation = orientation
-        layoutFrameIndex.orientation = orientation
-        if(orientation == HORIZONTAL){
+        //Log.d("test orientation","$orientation")
+        //super.setOrientation(orientation)
+        val videoLayoutParams = getVideoLayoutParams()
+        val playerViewLayoutParams = getPlayerViewLayoutParams()
+        val frameLayoutParams = getFrameLayoutParams()
+        val playerLayoutParams = getPlayerLayoutParams()
+
+        if(orientation == VERTICAL){
             layoutCapture.columnCount = 4
-            layoutLabeledFrameIndex.gravity = Gravity.CENTER_VERTICAL
-            layoutFrameIndex.gravity = Gravity.CENTER_VERTICAL
+
+            layoutVideo.orientation = VERTICAL
+            layoutPlayerView.orientation = VERTICAL
+            layoutLabeledFrameIndex.orientation = HORIZONTAL
+            layoutFrameIndex.orientation = HORIZONTAL
+
+            setVerticalSize(videoLayoutParams)
+            setVerticalSize(playerViewLayoutParams)
+            setVerticalSize(playerLayoutParams,350.dpToPx())
+            setVerticalSize(frameLayoutParams)
         }
-        else if(orientation == VERTICAL){
+        else if(orientation == HORIZONTAL){
             layoutCapture.columnCount = 2
-            layoutLabeledFrameIndex.gravity = Gravity.CENTER_HORIZONTAL
-            layoutFrameIndex.gravity = Gravity.CENTER_HORIZONTAL
+
+            layoutVideo.orientation = HORIZONTAL
+            layoutPlayerView.orientation = HORIZONTAL
+            layoutLabeledFrameIndex.orientation = VERTICAL
+            layoutFrameIndex.orientation = VERTICAL
+
+            setHorizontalSize(videoLayoutParams,LayoutParams.MATCH_PARENT)
+            setHorizontalSize(playerViewLayoutParams)
+            setHorizontalSize(playerLayoutParams,320.dpToPx())
+            setHorizontalSize(frameLayoutParams,250.dpToPx())
+        }
+    }
+    private fun Int.dpToPx(): Int {
+        return (this * resources.displayMetrics.density).toInt()
+    }
+    private fun setHorizontalSize(layoutParams: LayoutParams,width: Int = LayoutParams.WRAP_CONTENT){
+        layoutParams.apply {
+            this.width = width
+            height = LayoutParams.MATCH_PARENT
+        }
+    }
+    private fun setVerticalSize(layoutParams: LayoutParams,height: Int = LayoutParams.WRAP_CONTENT){
+        layoutParams.apply {
+            width = LayoutParams.MATCH_PARENT
+            this.height = height
         }
     }
 }

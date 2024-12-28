@@ -170,9 +170,6 @@ class MediaFileViewModel : ViewModel() {
         resetSelectedShape()
         return false
     }
-    fun initShape(shape: Shape){
-
-    }
     /*fun updateShapeColors(imageInfo: ImageInfo,labels: List<String>){
         for(shape in imageInfo.shapes) updateShapeColor(shape,labels)
     }*/

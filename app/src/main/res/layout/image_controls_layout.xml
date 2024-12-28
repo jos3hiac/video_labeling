@@ -2,69 +2,79 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="8dp"
-    android:gravity="center_horizontal">
+    android:orientation="horizontal"
+    android:padding="8dp">
 
-    <com.videolabeling.views.ZoomImageView
-        android:id="@+id/zoomImageView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp" />
-
-    <GridLayout
-        android:id="@+id/layoutShape"
+    <LinearLayout
+        android:id="@+id/layoutImage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:columnCount="4">
+        android:orientation="vertical">
 
-        <com.videolabeling.views.ButtonControl
-            android:id="@+id/controlCreateRect"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_gravity="center"/>
+        <com.videolabeling.views.ZoomImageView
+            android:id="@+id/zoomImageView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp" />
 
-        <com.videolabeling.views.ButtonControl
-            android:id="@+id/controlCreatePolygon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_gravity="center"/>
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <GridLayout
+                android:id="@+id/layoutShape"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="4">
 
-        <com.videolabeling.views.ButtonControl
-            android:id="@+id/controlEditShape"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_gravity="center"/>
+                <com.videolabeling.views.ButtonControl
+                    android:id="@+id/controlCreateRect"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="center"/>
 
-        <com.videolabeling.views.ButtonControl
-            android:id="@+id/controlShowVideo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_gravity="center"/>
+                <com.videolabeling.views.ButtonControl
+                    android:id="@+id/controlCreatePolygon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="center"/>
 
-        <com.videolabeling.views.ButtonControl
-            android:id="@+id/controlUndoLastPoint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_gravity="center"/>
+                <com.videolabeling.views.ButtonControl
+                    android:id="@+id/controlEditShape"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="center"/>
 
-        <com.videolabeling.views.ButtonControl
-            android:id="@+id/controlRemoveShape"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_gravity="center"/>
+                <com.videolabeling.views.ButtonControl
+                    android:id="@+id/controlShowVideo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="center"/>
 
-        <com.videolabeling.views.ButtonControl
-            android:id="@+id/controlEditLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:layout_gravity="center"/>
+                <com.videolabeling.views.ButtonControl
+                    android:id="@+id/controlUndoLastPoint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="center"/>
 
-    </GridLayout>
+                <com.videolabeling.views.ButtonControl
+                    android:id="@+id/controlRemoveShape"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="center"/>
+
+                <com.videolabeling.views.ButtonControl
+                    android:id="@+id/controlEditLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="center"/>
+
+            </GridLayout>
+        </ScrollView>
+    </LinearLayout>
 </LinearLayout>

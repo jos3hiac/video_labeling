@@ -13,6 +13,7 @@ class ImageControlsLayout @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : LinearLayout(context, attrs, defStyleAttr) {
+    val layoutImage: LinearLayout
     val zoomImageView: ZoomImageView
     val layoutShape: GridLayout
     val controlCreateRect: ButtonControl
@@ -31,6 +32,7 @@ class ImageControlsLayout @JvmOverloads constructor(
 
     init {
         LayoutInflater.from(context).inflate(R.layout.image_controls_layout, this, true)
+        layoutImage = findViewById(R.id.layoutImage)
         zoomImageView = findViewById(R.id.zoomImageView)
         layoutShape = findViewById(R.id.layoutShape)
         labelDialog = LabelDialog(context)
@@ -77,8 +79,12 @@ class ImageControlsLayout @JvmOverloads constructor(
 
     }
     fun getImageLayoutParams(): LayoutParams {
+        return zoomImageView.layoutParams as LayoutParams
+    }
+    fun getZoomImageViewLayoutParams(): LayoutParams {
          return zoomImageView.layoutParams as LayoutParams
     }
+
     /*fun isDefaultText(buttonControl: ButtonControl?): Boolean {
         if(buttonControl == controlCreateRect){
             return buttonControl.getText() == "Crear rectángulo"
@@ -123,11 +129,29 @@ class ImageControlsLayout @JvmOverloads constructor(
     }*/
     override fun setOrientation(orientation: Int){
         super.setOrientation(orientation)
-        if(orientation == HORIZONTAL){
+        val imageLayoutParams = getImageLayoutParams()
+
+        if(orientation == VERTICAL){
+            layoutImage.orientation = VERTICAL
             layoutShape.columnCount = 4
+            setVerticalSize(imageLayoutParams)
         }
-        else if(orientation == VERTICAL){
-            layoutShape.columnCount = 2
+        else if(orientation == HORIZONTAL){
+            layoutImage.orientation = HORIZONTAL
+            layoutShape.columnCount = 3
+            setHorizontalSize(imageLayoutParams,LayoutParams.MATCH_PARENT)
+        }
+    }
+    private fun setHorizontalSize(layoutParams: LayoutParams,width: Int = LayoutParams.WRAP_CONTENT){
+        layoutParams.apply {
+            this.width = width
+            height = LayoutParams.MATCH_PARENT
+        }
+    }
+    private fun setVerticalSize(layoutParams: LayoutParams,height: Int = LayoutParams.WRAP_CONTENT){
+        layoutParams.apply {
+            width = LayoutParams.MATCH_PARENT
+            this.height = height
         }
     }
 }
