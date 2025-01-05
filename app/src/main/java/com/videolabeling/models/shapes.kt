@@ -6,6 +6,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PointF
+import android.util.Log
 import androidx.core.graphics.values
 
 fun generateColors(nLabel: Int): List<Int> {
@@ -137,17 +138,18 @@ fun Matrix.untransformPoint(x: Float, y: Float): PointF {
 
 class ScalarFloat(
     var matrix: Matrix,
-    value: Float,
+    initialValue: Float,
     fixed: Boolean = false,
     var onChange: ((Float,Boolean) -> Unit)? = null
 ){
-    private var _value = value
+    //private var _value = value
     private var _fixed = fixed
-    var value
-        get() = getValue(_value)
-        set(value) {
-            _value = value
-            onChange?.invoke(value,fixed)
+    val dynamicValue
+        get() = if(fixed) matrix.untransformOnX(value) else value//getValue(_value)
+    var value = initialValue
+        set(newValue) {
+            field = newValue
+            onChange?.invoke(newValue,fixed)
         }
     var fixed
         get() = _fixed
@@ -161,10 +163,10 @@ class ScalarFloat(
     }
     /*fun change(){
         onChange?.invoke(value,fixed)
-    }*/
+    }
     private fun getValue(value: Float): Float {
         return if(fixed) matrix.untransformOnX(value) else value
-    }
+    }*/
 }
 
 abstract class Paintable(
@@ -185,7 +187,7 @@ abstract class Paintable(
     private var color = 0
     private var selected = false
 
-    val strokeWidth = ScalarFloat(matrix,5f,false)
+    val strokeWidth = ScalarFloat(matrix,4f,true)
     //var drawFill = true
     //var points: MutableList<PointF> = mutableListOf()
     protected var _onDrawListener: ((Canvas) -> Unit)? = null
@@ -268,11 +270,11 @@ class Vertex(matrix: Matrix,var center: PointF): Paintable(matrix) {
         val end = PointF(center.x+halfside,center.y+halfside)
         return listOf(start,end)
     }
-    private fun getHalfSide(): Float {
-        return 0.5f * side.value
+    fun getHalfSide(): Float {
+        return 0.5f * side.dynamicValue
     }
-    private fun getRadius(): Float {
-        return 0.4f * side.value
+    fun getRadius(): Float {
+        return 0.4f * side.dynamicValue
     }
     fun move(dx: Float,dy: Float): PointF {
         return center.move(dx,dy)
@@ -285,7 +287,7 @@ class Vertex(matrix: Matrix,var center: PointF): Paintable(matrix) {
         val pts = getBbox()
         val start = pts[0]
         val end = pts[1]
-        strokePaint.strokeWidth = strokeWidth.value
+        strokePaint.strokeWidth = strokeWidth.dynamicValue
         if(!getSelected()){
             canvas.drawCircle(center.x,center.y,getRadius(),strokePaint)
             canvas.drawCircle(center.x,center.y,getRadius(),fillPaint)
@@ -310,7 +312,7 @@ class Axis(matrix: Matrix): Paintable(matrix) {
         if(!visible) return
         val center = points[0]
         val end = points[1]
-        strokePaint.strokeWidth = strokeWidth.value
+        strokePaint.strokeWidth = strokeWidth.dynamicValue
         canvas.drawLine(0f, center.y, end.x, center.y, strokePaint)
         canvas.drawLine(center.x, 0f, center.x, end.y , strokePaint)
     }
@@ -320,13 +322,13 @@ abstract class Shape(matrix: Matrix): Paintable(matrix){
     private var label = ""
     val vertices = mutableListOf<Vertex>()
     val points = mutableListOf<PointF>()
-    val vertexSide = ScalarFloat(matrix,30f,false){ value,fixed ->
+    val vertexSide = ScalarFloat(matrix,45f,true){ value,fixed ->
         for(vertex in vertices){
             vertex.side.fixed = fixed
             vertex.side.value = value
         }
     }
-    var showVertices = true
+    var showVertices = false
         get() = field
         set(value) {
             field = value
@@ -386,7 +388,13 @@ abstract class Shape(matrix: Matrix): Paintable(matrix){
             vt.setBorderColor(borderColor)
             vt.setBgColor(vertexBgColor)
         }
+        showVertices = selected
         return this
+    }
+    override fun handleOnDrawListener(canvas: Canvas){
+        super.handleOnDrawListener(canvas)
+        strokePaint.strokeWidth = strokeWidth.dynamicValue
+        _onDrawListener?.invoke(canvas)
     }
     override fun setColor(color: Int): Shape {
         super.setColor(color)
@@ -432,7 +440,7 @@ class Rect(matrix: Matrix): Shape(matrix) {
         if(visible && points.size == 2){
             val start = points[0]
             val end = points[1]
-            strokePaint.strokeWidth = strokeWidth.value
+            //strokePaint.strokeWidth = strokeWidth.dynamicValue
             canvas.drawRect(start.x,start.y,end.x,end.y,strokePaint)
             if(getSelected()) canvas.drawRect(start.x,start.y,end.x,end.y,fillPaint)
         }
@@ -460,7 +468,7 @@ class Polygon(matrix: Matrix): Shape(matrix) {
                 path.lineTo(point.x, point.y)
             }
             path.close()
-            strokePaint.strokeWidth = strokeWidth.value
+            //strokePaint.strokeWidth = strokeWidth.dynamicValue
             canvas.drawPath(path,strokePaint)
             if(getSelected()) canvas.drawPath(path, fillPaint)
         }

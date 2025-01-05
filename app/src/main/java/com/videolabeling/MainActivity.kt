@@ -287,6 +287,8 @@ class MainActivity : AppCompatActivity() {
                     imageControls.zoomImageView.invalidate()
                 }
             }
+            //imageControls.zoomImageView.onScaleChangedListener = { scale ->
+            //}
             imageControls.zoomImageView.onSingleTapListener = { pts ->
                 if(actionType == "create"){
                     if(shape == null){
@@ -430,7 +432,7 @@ class MainActivity : AppCompatActivity() {
         file.getImageInfo()?.let { imageInfo ->
             imageInfo.image?.let { frame ->
                 mediaFileViewModel.initImageInfo(imageInfo,annotationManager.labels)
-                Log.d("test","image ${file.name} shapes ${imageInfo.shapes.size}")
+                Log.d("test setZoomImageByImage","image ${file.name} shapes ${imageInfo.shapes.size}")
                 imageControls.zoomImageView.apply {
                     resetViewState()
                     setPermissions(arrayOf(ZoomImageView.Permission.ALL))

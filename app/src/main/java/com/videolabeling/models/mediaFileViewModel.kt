@@ -47,7 +47,8 @@ class MediaFileViewModel : ViewModel() {
     }
     fun createShape(matrix: Matrix): Shape? {
         shape = Shape.create(shapeType,matrix)
-        shape!!.vertexSide.value = 50f
+        shape!!.showVertices = true
+        //shape!!.vertexSide.value = 50f
         shape!!.setColorAndAlpha(defaultColor)//0,128,0 124,252,0
         return shape
     }
@@ -72,6 +73,7 @@ class MediaFileViewModel : ViewModel() {
         return false
     }
     fun addShape(){
+        shape!!.showVertices = false
         imageInfo!!.shapes.add(shape!!)
         removeShape()
     }
@@ -80,7 +82,7 @@ class MediaFileViewModel : ViewModel() {
     }
     fun initImageInfo(imageInfo: ImageInfo,labels: List<String>){
         for(shape in imageInfo.shapes){
-            shape.vertexSide.value = 50f
+            //shape.vertexSide.value = 50f
             updateShapeColor(shape,labels)
         }
         this.imageInfo = imageInfo
